@@ -3,7 +3,7 @@
 // · CDN 도구(지도·QR·서버 연결): 저장본 우선
 // · 지도 그림·서버 요청: 건드리지 않음
 // · "공유 → 콩값"(설치한 앱 · 안드로이드)으로 온 기프티콘 사진: IndexedDB inbox 에 넣고 앱을 엶
-const CACHE='konggap-dev-v53';
+const CACHE='konggap-dev-v54';
 const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k.startsWith('konggap-dev-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
