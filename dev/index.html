@@ -3065,24 +3065,28 @@ if(TEST_GRANT&&!S.me.testGranted){S.me.points=(S.me.points||0)+TEST_GRANT;S.me.t
    앱에 잔잔하게 깔리는 음악. 처음 화면을 누를 때 작게(기본 25%) 시작 · 앱을 내리면 멈춤 · 길안내 음성 땐 더 작게.
    파일 곡(bgm/*.aac) + 콩값이 직접 만드는 소리(빗소리·로파이·카페 소음: 저작권 없는 합성음). 곡은 콩으로 삼. */
 const BGM=[
-  {id:'sample1',name:'콩값 라운지',sub:'기본 곡 · 샘플',src:'bgm/sample1.aac',price:0,ic:'☕'},
+  {id:'auto',name:'화면에 맞춰 자동',sub:'카페 지도 = 콩값 카페 · 콩 마을 = 바쁜 콩의 지도',price:0,ic:'🔀'},
+  {id:'kongcafe',name:'콩값 카페',sub:'카페 지도 곡',src:'bgm/kong-cafe.m4a',price:0,ic:'☕'},
+  {id:'kongmap',name:'바쁜 콩의 지도',sub:'콩 마을 곡',src:'bgm/kong-map.m4a',price:0,ic:'🏝'},
+  {id:'sample1',name:'콩값 라운지',sub:'예전 기본 곡',src:'bgm/sample1.aac',price:0,ic:'☕'},
   {id:'g_rain',name:'빗소리 카페',sub:'창밖에 비 오는 소리',gen:'rain',price:30,ic:'🌧'},
   {id:'g_lofi',name:'로파이 피아노',sub:'느린 코드 · 레코드 지직',gen:'lofi',price:50,ic:'🎹'},
   {id:'g_cafe',name:'카페 웅성웅성',sub:'사람 소리 · 잔 부딪히는 소리',gen:'cafe',price:30,ic:'🥤'},
 ];
-function bgmS(){S.bgm=S.bgm||{on:true,vol:.25,cur:'sample1',owned:['sample1']};return S.bgm;}
+function bgmS(){S.bgm=S.bgm||{on:true,vol:.25,cur:'auto',owned:['sample1'],v63:1};if(!S.bgm.v63){S.bgm.v63=1;if(S.bgm.cur==='sample1')S.bgm.cur='auto';}return S.bgm;}
+const bgmAutoId=()=>typeof MAPMODE!=='undefined'&&MAPMODE==='town'?'kongmap':'kongcafe';
 const BG={ctx:null,master:null,el:null,src:null,gen:null,playing:'',duck:1};
 function bgmCtx(){if(!BG.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;BG.ctx=new C();BG.master=BG.ctx.createGain();BG.master.connect(BG.ctx.destination);}return BG.ctx;}
 function bgmVol(){if(!BG.master)return;const s=bgmS();BG.master.gain.setTargetAtTime((s.on?s.vol:0)*BG.duck,BG.ctx.currentTime,.4);}
 function bgmStop(){if(BG.el){BG.el.pause();}if(BG.gen){try{BG.gen.stop();}catch(e){}BG.gen=null;}BG.playing='';}
 function bgmPlay(id,preview){
   const ctx=bgmCtx();if(!ctx)return;if(ctx.state==='suspended')ctx.resume();
-  const t=BGM.find(x=>x.id===(id||bgmS().cur))||BGM[0];
+  let t=BGM.find(x=>x.id===(id||bgmS().cur))||BGM[0];if(t.id==='auto')t=BGM.find(x=>x.id===bgmAutoId());
   if(BG.playing===t.id&&!preview)return bgmVol();
   bgmStop();BG.playing=t.id;
   if(t.src){
-    if(!BG.el){BG.el=new Audio();BG.el.loop=true;BG.el.preload='none';BG.src=ctx.createMediaElementSource(BG.el);BG.src.connect(BG.master);}
-    if(!BG.el.src.endsWith(t.src))BG.el.src=t.src;BG.el.play().catch(()=>{});
+    BG.els=BG.els||{};let el=BG.els[t.src];if(!el){el=new Audio();el.loop=true;el.preload='none';el.src=t.src;ctx.createMediaElementSource(el).connect(BG.master);BG.els[t.src]=el;}
+    BG.el=el;el.play().catch(()=>{});
   }else BG.gen=GEN[t.gen](ctx,BG.master);
   bgmVol();bgmBtn();
 }
@@ -3125,7 +3129,7 @@ function bgmModal(){
     <div class="bgm-top"><button class="btn ${s.on?'':'ghost'} sm" id="bgOn" style="width:auto">${s.on?'🎵 켜짐':'🔇 꺼짐'}</button>
       <label class="bgm-vol">🔈<input type="range" id="bgVol" min="0" max="0.8" step="0.05" value="${s.vol}">🔊</label></div>
     <div class="rc-h" style="margin:10px 0 6px"><span class="coin">🫘 쓸 수 있는 콩 ${won(c)}</span><small class="note">들어 보기는 무료</small></div>
-    <div class="bgm-list">${BGM.map(t=>{const own=s.owned.includes(t.id),cur=s.cur===t.id;
+    <div class="bgm-list">${BGM.map(t=>{const own=s.owned.includes(t.id)||t.price===0,cur=s.cur===t.id;
       return `<div class="bgm-row ${cur?'on':''}"><span class="bgm-ic">${t.ic}</span><span class="bgm-t"><b>${esc(t.name)}</b><small>${esc(t.sub)}</small></span>
         <button class="chip" data-bp="${t.id}">▶ 듣기</button>${cur?'<span class="ap-now">재생 중</span>':own?`<button class="btn sm" data-bu="${t.id}" style="width:auto">틀기</button>`:`<button class="btn sm ${t.price>c?'ghost':''}" data-bb="${t.id}" style="width:auto">🫘 ${t.price}</button>`}</div>`;}).join('')}</div>
     `);
@@ -3137,7 +3141,7 @@ function bgmModal(){
     if(t.price>coins()){toast(`콩이 ${t.price-coins()}개 모자라`);return;}
     if(!confirm(`${t.name}을(를) 🫘 ${t.price}콩에 살까?`))return;
     S.me.spent=(S.me.spent||0)+t.price;s.owned.push(t.id);s.cur=t.id;s.on=true;save();bgmPlay(t.id,true);toast(`🎵 ${t.name} 샀어!`);bgmModal();refreshPlay();});
-  const mo=new MutationObserver(()=>{if($('#modal').classList.contains('hidden')){mo.disconnect();if(s.on&&BG.playing!==s.cur)bgmPlay(s.cur,true);else if(!s.on)bgmVol();}});mo.observe($('#modal'),{attributes:true});
+  const mo=new MutationObserver(()=>{if($('#modal').classList.contains('hidden')){mo.disconnect();if(s.on&&BG.playing!==(s.cur==='auto'?bgmAutoId():s.cur))bgmPlay(s.cur,true);else if(!s.on)bgmVol();}});mo.observe($('#modal'),{attributes:true});
 }
 
 /* ───── v24: 📡 콩 줍기 — 100m 안 콩값 사용자끼리 만나면 둘 다 1~10콩 ─────
@@ -6504,6 +6508,7 @@ function g3pre(){if(!v3dOn()||G3.exited||G3.play||MAPMODE!=='town'||TOWNTAB!=='t
   G3.pend=true;G3.play=true;document.body.classList.add('play3d');setTimeout(()=>{if(MYISO)MYISO.resize();},30);
   setTimeout(()=>{if(G3.pend&&!g3wrap()){G3.pend=false;play3dUI();}},8000);}
 
+{const smmB=setMapMode;setMapMode=function(m){const r=smmB(m);try{const s=bgmS();if(s.on&&s.cur==='auto'&&BG.ctx&&BG.playing&&BG.playing!==bgmAutoId())bgmPlay();}catch(e){}return r;};}
 let MYISO=null,VISITISO=null;
 const OBJ_NAME={cafe:'☕ 내 카페',field:'🌱 원두밭',roast:'🏭 로스터리',home:'🏠 주민의 집',fountain:'⛲ 분수',tree:'🌳 나무',bench:'🪑 벤치',lamp:'💡 가로등',dock:'⚓ 항구',mlight:'🗼 등대'};
 const objLabel=o=>(o.name||OBJ_NAME[o.kind]||'')+((o.rl||o.lv)?' Lv.'+(o.rl||o.lv):'');
