@@ -3065,16 +3065,16 @@ if(TEST_GRANT&&!S.me.testGranted){S.me.points=(S.me.points||0)+TEST_GRANT;S.me.t
    앱에 잔잔하게 깔리는 음악. 처음 화면을 누를 때 작게(기본 25%) 시작 · 앱을 내리면 멈춤 · 길안내 음성 땐 더 작게.
    파일 곡(bgm/*.aac) + 콩값이 직접 만드는 소리(빗소리·로파이·카페 소음: 저작권 없는 합성음). 곡은 콩으로 삼. */
 const BGM=[
-  {id:'auto',name:'화면에 맞춰 자동',sub:'카페 지도 = 콩값 카페 · 콩 마을 = 바쁜 콩의 지도',price:0,ic:'🔀'},
-  {id:'kongcafe',name:'콩값 카페',sub:'카페 지도 곡',src:'bgm/kong-cafe.m4a',price:0,ic:'☕'},
-  {id:'kongmap',name:'바쁜 콩의 지도',sub:'콩 마을 곡',src:'bgm/kong-map.m4a',price:0,ic:'🏝'},
+  {id:'auto',name:'화면에 맞춰 자동',sub:'카페 지도 = 바쁜 콩의 지도 · 콩 마을 = 콩값 카페',price:0,ic:'🔀'},
+  {id:'kongcafe',name:'콩값 카페',sub:'콩 마을 곡',src:'bgm/kong-cafe.m4a',price:0,ic:'☕'},
+  {id:'kongmap',name:'바쁜 콩의 지도',sub:'카페 지도 곡',src:'bgm/kong-map.m4a',price:0,ic:'🏝'},
   {id:'sample1',name:'콩값 라운지',sub:'예전 기본 곡',src:'bgm/sample1.aac',price:0,ic:'☕'},
   {id:'g_rain',name:'빗소리 카페',sub:'창밖에 비 오는 소리',gen:'rain',price:30,ic:'🌧'},
   {id:'g_lofi',name:'로파이 피아노',sub:'느린 코드 · 레코드 지직',gen:'lofi',price:50,ic:'🎹'},
   {id:'g_cafe',name:'카페 웅성웅성',sub:'사람 소리 · 잔 부딪히는 소리',gen:'cafe',price:30,ic:'🥤'},
 ];
 function bgmS(){S.bgm=S.bgm||{on:true,vol:.25,cur:'auto',owned:['sample1'],v63:1};if(!S.bgm.v63){S.bgm.v63=1;if(S.bgm.cur==='sample1')S.bgm.cur='auto';}return S.bgm;}
-const bgmAutoId=()=>typeof MAPMODE!=='undefined'&&MAPMODE==='town'?'kongmap':'kongcafe';
+const bgmAutoId=()=>typeof MAPMODE!=='undefined'&&MAPMODE==='town'?'kongcafe':'kongmap';
 const BG={ctx:null,master:null,el:null,src:null,gen:null,playing:'',duck:1};
 function bgmCtx(){if(!BG.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;BG.ctx=new C();BG.master=BG.ctx.createGain();BG.master.connect(BG.ctx.destination);}return BG.ctx;}
 function bgmVol(){if(!BG.master)return;const s=bgmS();BG.master.gain.setTargetAtTime((s.on?s.vol:0)*BG.duck,BG.ctx.currentTime,.4);}
