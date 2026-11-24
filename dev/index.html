@@ -6881,7 +6881,8 @@ setTimeout(()=>envFetch(),2500);setInterval(()=>envFetch(),10*60000);document.ad
    · 올리기: 계정에 묶인 뒤 기록이 바뀌면 30초 뒤 자동 · 화면을 떠날 때 · [지금 저장]
      내려받기: 로그인 직후 · 앱을 켰을 때 서버가 더 새것이고 이 폰은 안 바뀌었을 때(자동) · [서버에서 불러오기]
      둘 다 바뀌었으면 자동으로 덮지 않고 물어봄
-   · slot = 이 앱의 저장 이름(KEY). 운영 주소와 시험 주소가 같은 서버를 써도 서로 덮어쓰지 않음 */
+   · slot(CSLOT) = 저장 칸 이름. 운영은 KEY, 시험판은 dev-<프로필>-KEY → 같은 서버를 써도 서로 덮어쓰지 않음 */
+const CSLOT=(window.KG_DEV?'dev-'+(window.KG_PROFILE||'free')+'-':'')+KEY; // 시험판은 저장 칸을 따로 씀(운영 기록을 덮지 않게)
 const CLOUD={busy:false,msg:'',timer:0,mode:'',email:'',lastErr:''};
 const cloudLS=(k,v)=>{const key=KEY+'_c_'+k;if(v===undefined){try{return JSON.parse(localStorage.getItem(key)||'null');}catch(e){return null;}}try{localStorage.setItem(key,JSON.stringify(v));}catch(e){}};
 const cloudDev=()=>{let d=cloudLS('dev');if(!d){d=Math.random().toString(36).slice(2,10)+Date.now().toString(36);cloudLS('dev',d);}return d;};
@@ -6893,7 +6894,7 @@ function cloudSoon(ms){clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(()=>clou
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&cloudLS('dirty'))cloudPush().catch(()=>{});});
 const cloudMeta=g=>{const m={};for(const k in g){const v=g[k];if(k==='img'||v instanceof Blob||typeof v==='function')continue;m[k]=v;}return m;};
 async function cloudPush(manual){const u=await cloudUser();if(!cloudLinked(u)){if(manual)throw new Error('먼저 이메일로 계정을 만들어 줘');return false;}if(CLOUD.busy)return false;CLOUD.busy=true;
-  try{const slot=KEY,known=cloudLS('rev')||0,{data:sv,error:e0}=await SBC.from('saves').select('rev,device,updated_at').eq('slot',slot).maybeSingle();if(e0)throw e0;
+  try{const slot=CSLOT,known=cloudLS('rev')||0,{data:sv,error:e0}=await SBC.from('saves').select('rev,device,updated_at').eq('slot',slot).maybeSingle();if(e0)throw e0;
     if(sv&&sv.rev>known&&sv.device!==cloudDev()&&!manual){CLOUD.msg='다른 기기에서 저장한 기록이 더 새것이야 · 불러올지 덮어쓸지 골라 줘';CLOUD.conflict=true;return false;}
     // 기프티콘·멤버십: 서버를 이 폰과 같게 맞춤(사진은 바뀐 것만 올림)
     let gifts=[];try{gifts=await GDB.all();}catch(e){}const up=cloudLS('up')||{},{data:rows,error:e1}=await SBC.from('wallet').select('id,img_path').eq('slot',slot);if(e1)throw e1;
@@ -6908,7 +6909,7 @@ async function cloudPush(manual){const u=await cloudUser();if(!cloudLinked(u)){i
   }catch(e){CLOUD.lastErr=String(e&&e.message||e).slice(0,120);if(manual)throw e;return false;}finally{CLOUD.busy=false;cloudDraw();}}
 // 서버 것을 이 폰에 그대로 내려받음(이 폰의 기록·기프티콘은 서버 것으로 바뀜) → 다시 켬
 async function cloudPull(){const u=await cloudUser();if(!cloudLinked(u))throw new Error('먼저 계정에 들어가 줘');if(CLOUD.busy)throw new Error('저장 중이야 · 잠시 뒤에 다시');CLOUD.busy=true;
-  try{const slot=KEY,{data:sv,error}=await SBC.from('saves').select('data,rev').eq('slot',slot).maybeSingle();if(error)throw error;if(!sv)throw new Error('서버에 저장된 기록이 아직 없어');
+  try{const slot=CSLOT,{data:sv,error}=await SBC.from('saves').select('data,rev').eq('slot',slot).maybeSingle();if(error)throw error;if(!sv)throw new Error('서버에 저장된 기록이 아직 없어');
     const {data:rows,error:e1}=await SBC.from('wallet').select('id,meta,img_path').eq('slot',slot);if(e1)throw e1;
     const got=[];for(const r of rows||[]){const g={...r.meta};if(r.img_path){const {data:blob,error:e2}=await SBC.storage.from('wallet').download(r.img_path);if(e2)throw e2;g.img=blob;}got.push(g);}   // 사진을 모두 받은 뒤에만 이 폰을 바꿈
     CLOUD.applying=true;const old=await GDB.all().catch(()=>[]),keep=new Set(got.map(g=>String(g.id)));for(const g of old)if(!keep.has(String(g.id)))await GDB.del(g.id);const up={};for(const g of got){await GDB.put(g);if(g.img)up[String(g.id)]=g.img.size+':'+g.img.type;}
@@ -6924,12 +6925,12 @@ async function cloudSendCode(email){email=String(email||'').trim().toLowerCase()
 async function cloudVerify(code){code=String(code||'').replace(/\D/g,'');if(code.length<6)throw new Error('메일로 온 숫자 코드를 넣어 줘');
   const {data,error}=await SBC.auth.verifyOtp({email:CLOUD.email,token:code,type:CLOUD.mode==='link'?'email_change':'email'});if(error)throw new Error(error.message);
   const u=data&&data.user||await cloudUser();if(u)ME_ID=u.id;const mode=CLOUD.mode;CLOUD.mode='';
-  const {data:sv}=await SBC.from('saves').select('rev,updated_at').eq('slot',KEY).maybeSingle();
+  const {data:sv}=await SBC.from('saves').select('rev,updated_at').eq('slot',CSLOT).maybeSingle();
   if(mode==='login'&&sv){if(confirm('이 계정에 저장된 기록이 있어('+new Date(sv.updated_at).toLocaleString('ko-KR')+').\n\n[확인] 서버 기록을 이 폰으로 불러오기 (이 폰의 지금 기록은 바뀜)\n[취소] 이 폰의 기록을 그대로 두기')){await cloudPull();location.reload();return 'pulled';}CLOUD.conflict=true;CLOUD.msg='서버에 다른 기록이 있어 · [지금 저장]을 누르면 이 폰 기록으로 덮어써';return 'kept';}
   await cloudPush(true);return 'linked';}
 async function cloudLogout(){if(!confirm('로그아웃할까? 이 폰의 기록은 그대로 남고, 서버 저장만 멈춰.'))return;clearTimeout(CLOUD.timer);await SBC.auth.signOut();['rev','dirty','at','up'].forEach(k=>localStorage.removeItem(KEY+'_c_'+k));location.reload();}
 // 켰을 때: 서버가 더 새것이고 이 폰은 안 바뀌었으면 조용히 불러옴 · 둘 다 바뀌었으면 알려만 줌
-async function cloudBoot(){try{const u=await cloudUser();if(!cloudLinked(u))return;const {data:sv}=await SBC.from('saves').select('rev,device').eq('slot',KEY).maybeSingle();const known=cloudLS('rev')||0;
+async function cloudBoot(){try{const u=await cloudUser();if(!cloudLinked(u))return;const {data:sv}=await SBC.from('saves').select('rev,device').eq('slot',CSLOT).maybeSingle();const known=cloudLS('rev')||0;
     if(sv&&sv.rev>known&&sv.device!==cloudDev()){if(!cloudLS('dirty')){await cloudPull();location.reload();return;}CLOUD.conflict=true;CLOUD.msg='다른 기기에서 저장한 기록이 더 새것이야 · 불러올지 덮어쓸지 골라 줘';toast('☁️ 다른 기기의 기록이 더 새것이야 · [나] 탭에서 골라 줘');}
     else if(cloudLS('dirty'))cloudSoon(5000);}catch(e){}}
 // [나] 탭 카드
